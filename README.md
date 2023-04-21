@@ -3,7 +3,7 @@ Git-commit-able caching wrapper for slow [glov-build](https://github.com/Jimbly/
 
 Though [glov-build](https://github.com/Jimbly/glov-build) is already highly cached and only reprocesses exactly the files needed to be reprocessed on your machine, some tasks (such as `imagemin`) are so slow that you do not want to have to run them even once on a new developer's machine, or on a build system (which may be unable to take advantage of a local cache between runs).
 
-This task wrapper is for caching single-input/output tasks such as image minification or other image postprocessing.
+This task wrapper is for caching single-input tasks such as image minification or other image postprocessing.  Tasks that output multiple outputs (such as a .wav -> .ogg + .mp3 conversion task) are also supported, as long as they are of type `gb.SINGLE`.
 
 API usage:
 ```javascript

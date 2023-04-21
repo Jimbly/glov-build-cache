@@ -1,6 +1,6 @@
 {
   "name": "glov-build-cache",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Git-commit-able caching wrapper for slow build tasks",
   "main": "index.js",
   "keywords": [
@@ -14,11 +14,10 @@
     "url": "git@github.com:Jimbly/glov-build-cache.git"
   },
   "license": "MIT",
-  "dependencies": {
-  },
   "peerDependencies": {
     "glov-build": ">= 1.0.40"
   },
-  "devDependencies": {
+  "dependencies": {
+    "glov-async": "^1.0.3"
   }
 }
