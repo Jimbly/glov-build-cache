@@ -147,18 +147,23 @@ module.exports = function gbcache(cache_opts, task_opts) {
     ) {
       // cache appears valid
       let outputs = [];
+      let force_miss = false;
       asyncEach(cache_record.files, function (file_entry, next, idx) {
         let cached_file = recordToFilename2(cache_record, file_entry);
         fs.readFile(cached_file, function (err, buffer) {
           if (err) {
             job.warn(`gbcache: unable to load file referenced by cache: ${cached_file} (${err})`);
-            return void next(err);
+            force_miss = true;
+            file_entry.output_hash = 'invalid'; // if a later output matches the old hash, we *do* need to write it!
+            return void next();
           }
           let found_hash = hash(buffer);
           if (found_hash !== file_entry.output_hash) {
             job.warn(`gbcache: corrupt file referenced by cache: ${cached_file}` +
               ` (expected: ${file_entry.output_hash}, found: ${found_hash})`);
-            return void next('corrupt cache');
+            file_entry.output_hash = 'invalid'; // if a later output matches the old hash, we *do* need to write it!
+            force_miss = true;
+            return void next();
           }
           outputs.push({
             relative: file_entry.relative,
@@ -167,7 +172,7 @@ module.exports = function gbcache(cache_opts, task_opts) {
           next();
         });
       }, function (err) {
-        if (err) {
+        if (err || force_miss) {
           return void cacheMiss();
         }
         for (let ii = 0; ii < outputs.length; ++ii) {
