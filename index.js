@@ -266,7 +266,9 @@ module.exports = function gbcache(cache_opts, task_opts) {
         for (let ii = 0; ii < new_entry.files.length; ++ii) {
           let new_file = new_entry.files[ii];
           if (new_file.needs_write) {
-            fs.writeFileSync(recordToFilename2(new_entry, new_file), new_file.contents);
+            let record_name = recordToFilename2(new_entry, new_file);
+            gb.debug(`  gbcache(${key}): writing ${record_name}`);
+            fs.writeFileSync(record_name, new_file.contents);
             ++new_files;
             delete new_file.needs_write;
             delete new_file.contents;
@@ -295,6 +297,7 @@ module.exports = function gbcache(cache_opts, task_opts) {
       let pruned = 0;
       for (let ii = 0; ii < to_prune.length; ++ii) {
         let filename = to_prune[ii];
+        gb.debug(`  gbcache(${key}): pruning ${filename}`);
         if (fs.existsSync(filename)) {
           try {
             fs.unlinkSync(filename);
