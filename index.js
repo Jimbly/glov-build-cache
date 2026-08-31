@@ -224,10 +224,12 @@ module.exports = function gbcache(cache_opts, task_opts) {
               let found = false;
               for (let jj = 0; jj < new_entry.files.length; ++jj) {
                 let new_file = new_entry.files[jj];
-                if (new_file.relative === old_file.relative && new_file.output_hash === old_file.output_hash) {
-                  // same, use it
-                  delete new_file.contents;
-                  delete new_file.needs_write;
+                if (new_file.relative === old_file.relative) {
+                  if (new_file.output_hash === old_file.output_hash) {
+                    // same, use it
+                    delete new_file.contents;
+                    delete new_file.needs_write;
+                  } // else: changed, write new contents, don't "prune" as the cache filename is unchanged
                   found = true;
                 }
               }
