@@ -9,9 +9,13 @@
     "glovjs"
   ],
   "author": "Jimb Esser (https://github.com/Jimbly)",
+  "homepage": "https://github.com/Jimbly/glov-build-cache#readme",
   "repository": {
     "type": "git",
-    "url": "git@github.com:Jimbly/glov-build-cache.git"
+    "url": "git+https://github.com/Jimbly/npm-publish.git"
+  },
+  "scripts": {
+    "test": "true || cd ."
   },
   "license": "MIT",
   "peerDependencies": {
