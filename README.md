@@ -18,6 +18,7 @@ gb.task({
     key: 'cache-key',
     version: 1,
     cache_root: './.gbcache',
+    gzexts: ['.dds'],
     do_cache_write: false,
     do_cache_rebuild: false,
   }, {
@@ -33,6 +34,7 @@ Options
 * **`cache_root`** - optional root folder for caching, defaults to `gb.getSourceRoot()/../.gbcache/`
 * **`do_cache_write`** optional boolean to enable writing to the cache after every task run, defaults to `false` unless `--cache-write` is passed on the command line.  This is generally not recommended unless you want developers to always commit and updated cache folder with each commit that changes one of the sources (which has increases the chance of meaningless merge conflicts, etc).
 * **`do_cache_rebuild`** optional boolean to enable pruning and rebuilding the cache during the first task run, defaults to `false` unless `--cache-rebuild` is passed on the command line.  This should be done only periodically when the cache is significantly out of date and needs to be updated and committed to source control.
+* **`gzexts`** optional list of file extensions that should be stored gzipped in the cache
 
 
 Example usage in build script:

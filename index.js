@@ -2,6 +2,7 @@ const assert = require('assert');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const { gzipSync, gunzip } = require('zlib');
 const { asyncEach } = require('glov-async');
 const gb = require('glov-build');
 const argv = require('minimist')(process.argv.slice(2));
@@ -11,7 +12,12 @@ function hash(buffer) {
 }
 
 function safeFilename(relative) {
-  return relative.replace(/[^A-Za-z0-9_.-]/g, '_');
+  relative = relative.replace(/[^A-Za-z0-9_.-]/g, '_');
+  if (relative.endsWith('.gz')) {
+    // will confuse internal logic
+    relative = relative.replace(/\.gz$/, '.sourcegz');
+  }
+  return relative;
 }
 
 module.exports = function gbcache(cache_opts, task_opts) {
@@ -21,6 +27,7 @@ module.exports = function gbcache(cache_opts, task_opts) {
     cache_root,
     do_cache_write,
     do_cache_rebuild,
+    gzexts,
   } = cache_opts;
   assert.equal(typeof key, 'string');
   assert.equal(typeof version, 'number');
@@ -35,6 +42,13 @@ module.exports = function gbcache(cache_opts, task_opts) {
   }
   if (do_cache_write === undefined) {
     do_cache_write = argv['cache-write'];
+  }
+  if (gzexts === undefined) {
+    gzexts = [];
+  }
+  let gzmap = {};
+  for (let ii = 0; ii < gzexts.length; ++ii) {
+    gzmap[gzexts[ii]] = true;
   }
 
   cache_root = cache_root || path.resolve(gb.getSourceRoot(), '../.gbcache');
@@ -52,7 +66,11 @@ module.exports = function gbcache(cache_opts, task_opts) {
       ext = fn.slice(ext_idx);
       fn = fn.slice(0, ext_idx);
     }
-    return `${cache_folder}/${fn}#${file_entry.output_hash.slice(-7)}${ext}`;
+    let gz = '';
+    if (gzmap[ext]) {
+      gz = '.gz';
+    }
+    return `${cache_folder}/${fn}#${file_entry.output_hash.slice(-7)}${ext}${gz}`;
   }
 
   function inputHash(record) {
@@ -242,6 +260,12 @@ module.exports = function gbcache(cache_opts, task_opts) {
       let outputs = [];
       asyncEach(cache_record.outputs, function (file_entry, next, idx) {
         let cached_file = recordToFilename2(file_entry);
+        function uncompress(buffer, next) {
+          if (!cached_file.endsWith('.gz')) {
+            return void next(null, buffer);
+          }
+          gunzip(buffer, next);
+        }
         fs.readFile(cached_file, function (err, buffer) {
           if (err) {
             job.warn(`gbcache: unable to load file referenced by cache: ${cached_file} (${err})`);
@@ -249,19 +273,27 @@ module.exports = function gbcache(cache_opts, task_opts) {
             file_entry.output_hash = 'invalid'; // if a later output matches the old hash, we *do* need to write it!
             return void next();
           }
-          let found_hash = hash(buffer);
-          if (found_hash !== file_entry.output_hash) {
-            job.warn(`gbcache: corrupt file referenced by cache: ${cached_file}` +
-              ` (expected: ${file_entry.output_hash}, found: ${found_hash})`);
-            file_entry.output_hash = 'invalid'; // if a later output matches the old hash, we *do* need to write it!
-            force_miss = true;
-            return void next();
-          }
-          outputs.push({
-            relative: file_entry.relative,
-            contents: buffer,
+          uncompress(buffer, function (err, buffer) {
+            if (err) {
+              job.warn(`gbcache: unable to decompress file referenced by cache: ${cached_file} (${err})`);
+              force_miss = true;
+              file_entry.output_hash = 'invalid'; // if a later output matches the old hash, we *do* need to write it!
+              return void next();
+            }
+            let found_hash = hash(buffer);
+            if (found_hash !== file_entry.output_hash) {
+              job.warn(`gbcache: corrupt file referenced by cache: ${cached_file}` +
+                ` (expected: ${file_entry.output_hash}, found: ${found_hash})`);
+              file_entry.output_hash = 'invalid'; // if a later output matches the old hash, we *do* need to write it!
+              force_miss = true;
+              return void next();
+            }
+            outputs.push({
+              relative: file_entry.relative,
+              contents: buffer,
+            });
+            next();
           });
-          next();
         });
       }, function (err) {
         if (err || force_miss) {
@@ -348,7 +380,11 @@ module.exports = function gbcache(cache_opts, task_opts) {
           all_outputs[record_name] = true;
           if (new_file.needs_write) {
             gb.debug(`  gbcache(${key}): writing ${record_name}`);
-            fs.writeFileSync(record_name, new_file.contents);
+            let buf = new_file.contents;
+            if (record_name.endsWith('.gz')) {
+              buf = gzipSync(buf);
+            }
+            fs.writeFileSync(record_name, buf);
             ++new_outputs;
             delete new_file.needs_write;
             delete new_file.contents;
